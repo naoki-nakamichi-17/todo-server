@@ -10,19 +10,63 @@ app.use(express.json());
 app.use(cors());
 const prisma = new PrismaClient();
 
+// --- Assignee endpoints ---
+
+app.get("/allAssignees", async (req: Request, res: Response) => {
+  const allAssignees = await prisma.assignee.findMany({
+    orderBy: { name: "asc" },
+  });
+  return res.json(allAssignees);
+});
+
+app.post("/createAssignee", async (req: Request, res: Response) => {
+  try {
+    const { name, color } = req.body;
+    const assignee = await prisma.assignee.create({
+      data: { name, color: color || undefined },
+    });
+    return res.json(assignee);
+  } catch (e) {
+    return res.status(400).json(e);
+  }
+});
+
+app.delete("/deleteAssignee/:id", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    // 担当者に紐づくTodoのassigneeIdをnullに更新
+    await prisma.todo.updateMany({
+      where: { assigneeId: id },
+      data: { assigneeId: null },
+    });
+    const deletedAssignee = await prisma.assignee.delete({ where: { id } });
+    return res.json(deletedAssignee);
+  } catch (e) {
+    return res.status(400).json(e);
+  }
+});
+
+// --- Todo endpoints ---
+
 app.get("/allTodos", async (req: Request, res: Response) => {
-  const allTodos = await prisma.todo.findMany();
+  const allTodos = await prisma.todo.findMany({
+    include: { assignee: true },
+  });
   return res.json(allTodos);
 });
 
 app.post("/createTodo", async (req: Request, res: Response) => {
   try {
-    const { title, isCompleted } = req.body;
+    const { title, description, status, priority, assigneeId } = req.body;
     const createTodo = await prisma.todo.create({
       data: {
         title,
-        isCompleted,
+        description,
+        status: status || "TODO",
+        priority: priority || "MEDIUM",
+        assigneeId: assigneeId || null,
       },
+      include: { assignee: true },
     });
     return res.json(createTodo);
   } catch (e) {
@@ -33,13 +77,17 @@ app.post("/createTodo", async (req: Request, res: Response) => {
 app.put("/editTodo/:id", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-    const { title, isCompleted } = req.body;
+    const { title, description, status, priority, assigneeId } = req.body;
     const editTodo = await prisma.todo.update({
       where: { id },
       data: {
         title,
-        isCompleted,
+        description,
+        status,
+        priority,
+        assigneeId: assigneeId !== undefined ? (assigneeId || null) : undefined,
       },
+      include: { assignee: true },
     });
     return res.json(editTodo);
   } catch (e) {

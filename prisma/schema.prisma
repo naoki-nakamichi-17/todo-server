@@ -10,8 +10,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Assignee {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  color String @default("#6B7280")
+  todos Todo[]
+}
+
 model Todo {
-  id Int @id @default(autoincrement())
-  title String
-  isCompleted Boolean @default(false)
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  status      String    @default("TODO") // TODO, DOING, DONE
+  priority    String    @default("MEDIUM") // HIGH, MEDIUM, LOW
+  assigneeId  Int?
+  assignee    Assignee? @relation(fields: [assigneeId], references: [id])
 }
