@@ -14,30 +14,63 @@ const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || "default-local-secret";
 
-// --- Auto-seed default users on startup ---
+// --- Auto-seed on startup (users, assignees, todos) ---
 
-const DEFAULT_USERS = [
-  { username: "Nakamichi", password: "$2b$10$GFuvfktZoeCDgUwJud49YeC35VEGuxxuqSutnvPeR5sM7cVEqLhkC" },
-  { username: "Takahata", password: "$2b$10$nTbj1yp30DLNCMpDxwmBo.5XJrn3VXIQaUp3/rb0Hg9PRrgRfC3ZS" },
-  { username: "Kasadate", password: "$2b$10$Ct1Hc3OlsYEETs5IqLk/W.2BLgh6xBFmdpC5l1ZNL.ZUnZwff3f9S" },
-  { username: "admin", password: "$2b$10$Pay9Cb53li.VpfO3YPoW9OZmC9UcMih3tEtIhhfAU4f6p0Mksmlrm" },
-];
-
-async function seedUsers() {
-  const count = await prisma.user.count();
-  if (count === 0) {
-    for (const u of DEFAULT_USERS) {
-      await prisma.user.upsert({
-        where: { username: u.username },
-        update: {},
-        create: { username: u.username, password: u.password },
-      });
+async function seedData() {
+  // Users
+  const userCount = await prisma.user.count();
+  if (userCount === 0) {
+    const users = [
+      { username: "Nakamichi", password: "$2b$10$GFuvfktZoeCDgUwJud49YeC35VEGuxxuqSutnvPeR5sM7cVEqLhkC" },
+      { username: "Takahata", password: "$2b$10$nTbj1yp30DLNCMpDxwmBo.5XJrn3VXIQaUp3/rb0Hg9PRrgRfC3ZS" },
+      { username: "Kasadate", password: "$2b$10$Ct1Hc3OlsYEETs5IqLk/W.2BLgh6xBFmdpC5l1ZNL.ZUnZwff3f9S" },
+      { username: "admin", password: "$2b$10$Pay9Cb53li.VpfO3YPoW9OZmC9UcMih3tEtIhhfAU4f6p0Mksmlrm" },
+    ];
+    for (const u of users) {
+      await prisma.user.create({ data: u });
     }
-    console.log("Default users seeded.");
+    console.log("Users seeded.");
+  }
+
+  // Assignees
+  const assigneeCount = await prisma.assignee.count();
+  if (assigneeCount === 0) {
+    const assignees = [
+      { name: "中道", color: "#EF4444" },
+      { name: "笠立", color: "#10B981" },
+      { name: "高畑", color: "#F59E0B" },
+    ];
+    for (const a of assignees) {
+      await prisma.assignee.create({ data: a });
+    }
+    console.log("Assignees seeded.");
+  }
+
+  // Todos
+  const todoCount = await prisma.todo.count();
+  if (todoCount === 0) {
+    const nakamichi = await prisma.assignee.findUnique({ where: { name: "中道" } });
+    const kasadate = await prisma.assignee.findUnique({ where: { name: "笠立" } });
+    const takahata = await prisma.assignee.findUnique({ where: { name: "高畑" } });
+
+    const todos = [
+      { title: "Docker, ECS学習", description: "Udemy動画学習　L【完全版】AWS ECSコンテナアプリケーション開発（入門から実践まで）", status: "TODO", priority: "MEDIUM", sortOrder: 0, assigneeId: nakamichi?.id },
+      { title: "Pythonアプリ作成（チーム開発）", description: "Claudeを複数起動してそれぞれの端末でソースコードを書かせてみる", status: "TODO", priority: "MEDIUM", sortOrder: 1, assigneeId: nakamichi?.id },
+      { title: "test", description: "test", status: "TODO", priority: "LOW", sortOrder: 2, assigneeId: kasadate?.id },
+      { title: "test", description: "tete", status: "TODO", priority: "MEDIUM", sortOrder: 3, assigneeId: takahata?.id },
+      { title: "AIチーム開発ノウハウ習熟", description: "チーム開発で生成AIを使った製造をするときに必要なプロンプトやSkill、テンプレートを用意する", status: "DOING", priority: "HIGH", sortOrder: 4, assigneeId: nakamichi?.id },
+      { title: "Python学習", description: "Udemy動画学習　L データ分析、データ分析の基礎から実践レベルのデータ分析のやり方まで", status: "DOING", priority: "MEDIUM", sortOrder: 5, assigneeId: nakamichi?.id },
+      { title: "NextJS学習", description: "実際にCo-mitiを参考に画面作成", status: "DONE", priority: "HIGH", sortOrder: 6, assigneeId: nakamichi?.id },
+      { title: "Todoアプリの改修", description: "DOING + 概要入力機の追加", status: "DONE", priority: "LOW", sortOrder: 7, assigneeId: nakamichi?.id },
+    ];
+    for (const t of todos) {
+      await prisma.todo.create({ data: { ...t, assigneeId: t.assigneeId ?? null } });
+    }
+    console.log("Todos seeded.");
   }
 }
 
-seedUsers().catch((e) => console.error("Seed error:", e));
+seedData().catch((e) => console.error("Seed error:", e));
 
 // --- Auth middleware ---
 
