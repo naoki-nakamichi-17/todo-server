@@ -31,6 +31,20 @@ app.post("/createAssignee", async (req: Request, res: Response) => {
   }
 });
 
+app.put("/editAssignee/:id", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { name } = req.body;
+    const assignee = await prisma.assignee.update({
+      where: { id },
+      data: { name },
+    });
+    return res.json(assignee);
+  } catch (e) {
+    return res.status(400).json(e);
+  }
+});
+
 app.delete("/deleteAssignee/:id", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -51,6 +65,7 @@ app.delete("/deleteAssignee/:id", async (req: Request, res: Response) => {
 app.get("/allTodos", async (req: Request, res: Response) => {
   const allTodos = await prisma.todo.findMany({
     include: { assignee: true },
+    orderBy: { sortOrder: "asc" },
   });
   return res.json(allTodos);
 });
@@ -58,6 +73,7 @@ app.get("/allTodos", async (req: Request, res: Response) => {
 app.post("/createTodo", async (req: Request, res: Response) => {
   try {
     const { title, description, status, priority, assigneeId } = req.body;
+    const maxOrder = await prisma.todo.aggregate({ _max: { sortOrder: true } });
     const createTodo = await prisma.todo.create({
       data: {
         title,
@@ -65,6 +81,7 @@ app.post("/createTodo", async (req: Request, res: Response) => {
         status: status || "TODO",
         priority: priority || "MEDIUM",
         assigneeId: assigneeId || null,
+        sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
       },
       include: { assignee: true },
     });
@@ -90,6 +107,23 @@ app.put("/editTodo/:id", async (req: Request, res: Response) => {
       include: { assignee: true },
     });
     return res.json(editTodo);
+  } catch (e) {
+    return res.status(400).json(e);
+  }
+});
+
+app.put("/reorderTodos", async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body as { items: { id: number; sortOrder: number }[] };
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.todo.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder },
+        })
+      )
+    );
+    return res.json({ success: true });
   } catch (e) {
     return res.status(400).json(e);
   }

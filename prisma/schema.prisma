@@ -23,6 +23,7 @@ model Todo {
   description String?
   status      String    @default("TODO") // TODO, DOING, DONE
   priority    String    @default("MEDIUM") // HIGH, MEDIUM, LOW
+  sortOrder   Int       @default(0)
   assigneeId  Int?
   assignee    Assignee? @relation(fields: [assigneeId], references: [id])
 }
