@@ -20,6 +20,7 @@ const DEFAULT_USERS = [
   { username: "Nakamichi", password: "$2b$10$GFuvfktZoeCDgUwJud49YeC35VEGuxxuqSutnvPeR5sM7cVEqLhkC" },
   { username: "Takahata", password: "$2b$10$nTbj1yp30DLNCMpDxwmBo.5XJrn3VXIQaUp3/rb0Hg9PRrgRfC3ZS" },
   { username: "Kasadate", password: "$2b$10$Ct1Hc3OlsYEETs5IqLk/W.2BLgh6xBFmdpC5l1ZNL.ZUnZwff3f9S" },
+  { username: "admin", password: "$2b$10$Pay9Cb53li.VpfO3YPoW9OZmC9UcMih3tEtIhhfAU4f6p0Mksmlrm" },
 ];
 
 async function seedUsers() {
