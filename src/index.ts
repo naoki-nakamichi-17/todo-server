@@ -249,4 +249,67 @@ app.delete("/deleteTodo/:id", authMiddleware, async (req: Request, res: Response
   }
 });
 
+// --- Data export/import ---
+
+app.get("/exportData", authMiddleware, async (req: Request, res: Response) => {
+  const assignees = await prisma.assignee.findMany({ orderBy: { id: "asc" } });
+  const todos = await prisma.todo.findMany({
+    include: { assignee: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const data = {
+    exportedAt: new Date().toISOString(),
+    assignees: assignees.map((a) => ({ name: a.name, color: a.color })),
+    todos: todos.map((t) => ({
+      title: t.title,
+      description: t.description,
+      status: t.status,
+      priority: t.priority,
+      sortOrder: t.sortOrder,
+      assigneeName: t.assignee?.name || null,
+    })),
+  };
+
+  return res.json(data);
+});
+
+app.post("/importData", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { assignees, todos } = req.body;
+
+    // 既存データを削除（Todo → Assignee の順）
+    await prisma.todo.deleteMany();
+    await prisma.assignee.deleteMany();
+
+    // Assignee復元
+    for (const a of assignees) {
+      await prisma.assignee.create({ data: { name: a.name, color: a.color } });
+    }
+
+    // Todo復元（assigneeNameからIDを解決）
+    for (const t of todos) {
+      let assigneeId: number | null = null;
+      if (t.assigneeName) {
+        const found = await prisma.assignee.findUnique({ where: { name: t.assigneeName } });
+        assigneeId = found?.id ?? null;
+      }
+      await prisma.todo.create({
+        data: {
+          title: t.title,
+          description: t.description || null,
+          status: t.status,
+          priority: t.priority,
+          sortOrder: t.sortOrder,
+          assigneeId,
+        },
+      });
+    }
+
+    return res.json({ success: true, assignees: assignees.length, todos: todos.length });
+  } catch (e) {
+    return res.status(400).json({ error: "Import failed" });
+  }
+});
+
 app.listen(PORT, () => console.log("server is running🚀"));
