@@ -14,6 +14,30 @@ const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || "default-local-secret";
 
+// --- Auto-seed default users on startup ---
+
+const DEFAULT_USERS = [
+  { username: "Nakamichi", password: "$2b$10$GFuvfktZoeCDgUwJud49YeC35VEGuxxuqSutnvPeR5sM7cVEqLhkC" },
+  { username: "Takahata", password: "$2b$10$nTbj1yp30DLNCMpDxwmBo.5XJrn3VXIQaUp3/rb0Hg9PRrgRfC3ZS" },
+  { username: "Kasadate", password: "$2b$10$Ct1Hc3OlsYEETs5IqLk/W.2BLgh6xBFmdpC5l1ZNL.ZUnZwff3f9S" },
+];
+
+async function seedUsers() {
+  const count = await prisma.user.count();
+  if (count === 0) {
+    for (const u of DEFAULT_USERS) {
+      await prisma.user.upsert({
+        where: { username: u.username },
+        update: {},
+        create: { username: u.username, password: u.password },
+      });
+    }
+    console.log("Default users seeded.");
+  }
+}
+
+seedUsers().catch((e) => console.error("Seed error:", e));
+
 // --- Auth middleware ---
 
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
