@@ -312,4 +312,44 @@ app.post("/importData", authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+// タスク追加インポート（既存データを消さずにJSONからタスクを追加）
+app.post("/importTodos", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { todos } = req.body;
+    if (!todos || !Array.isArray(todos)) {
+      return res.status(400).json({ error: "todos array is required" });
+    }
+
+    const maxOrder = await prisma.todo.aggregate({ _max: { sortOrder: true } });
+    let nextOrder = (maxOrder._max.sortOrder ?? -1) + 1;
+    let created = 0;
+
+    for (const t of todos) {
+      if (!t.title) continue;
+
+      let assigneeId: number | null = null;
+      if (t.assigneeName) {
+        const found = await prisma.assignee.findUnique({ where: { name: t.assigneeName } });
+        assigneeId = found?.id ?? null;
+      }
+
+      await prisma.todo.create({
+        data: {
+          title: t.title,
+          description: t.description || null,
+          status: t.status || "TODO",
+          priority: t.priority || "MEDIUM",
+          sortOrder: nextOrder++,
+          assigneeId,
+        },
+      });
+      created++;
+    }
+
+    return res.json({ success: true, created });
+  } catch (e) {
+    return res.status(400).json({ error: "Import failed" });
+  }
+});
+
 app.listen(PORT, () => console.log("server is running🚀"));
